@@ -1,0 +1,2295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fake Banking APK Detector</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap');
+
+        :root {
+            --dark-bg: #121212;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --neon-blue: #0ff;
+            --danger-red: #ff4444;
+            --safe-green: #44ff44;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .neon-glow {
+            box-shadow: 0 0 10px var(--neon-blue), 0 0 20px rgba(0, 255, 255, 0.3);
+        }
+
+        .btn-neon {
+            background: linear-gradient(45deg, var(--neon-blue), #00b3b3);
+            border: none;
+            color: black;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-neon:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 15px var(--neon-blue), 0 0 30px rgba(0, 255, 255, 0.4);
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--neon-blue);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .upload-zone.dragover {
+            background: rgba(0, 255, 255, 0.1);
+            transform: scale(1.02);
+        }
+
+        .permission-risk-high {
+            background: linear-gradient(90deg, rgba(255, 68, 68, 0.2), transparent);
+            border-left: 4px solid var(--danger-red);
+        }
+
+        .permission-risk-medium {
+            background: linear-gradient(90deg, rgba(255, 165, 0, 0.2), transparent);
+            border-left: 4px solid orange;
+        }
+
+        .permission-risk-low {
+            background: linear-gradient(90deg, rgba(68, 255, 68, 0.2), transparent);
+            border-left: 4px solid var(--safe-green);
+        }
+
+        .verdict-safe {
+            color: var(--safe-green);
+            font-weight: bold;
+        }
+
+        .verdict-dangerous {
+            color: var(--danger-red);
+            font-weight: bold;
+        }
+
+        .verdict-likely-fake {
+            color: orange;
+            font-weight: bold;
+        }
+
+        .nav-link {
+            position: relative;
+            padding: 0.5rem 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--neon-blue);
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        .hamburger-menu {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .hamburger-menu {
+                display: block;
+            }
+
+            .nav-links {
+                display: none;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: rgba(18, 18, 18, 0.95);
+                backdrop-filter: blur(10px);
+                flex-direction: column;
+                padding: 1rem;
+            }
+
+            .nav-links.active {
+                display: flex;
+            }
+        }
+
+        .page {
+            display: none;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .scanning-animation {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .cert-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .cert-trusted {
+            background: rgba(68, 255, 68, 0.2);
+            color: var(--safe-green);
+        }
+
+        .cert-untrusted {
+            background: rgba(255, 68, 68, 0.2);
+            color: var(--danger-red);
+        }
+
+        /* Chart container styles */
+        .chart-container {
+            position: relative;
+            height: 250px; /* Default height for donut and bar charts */
+            width: 100%;
+        }
+
+        .activity-chart-container {
+            position: relative;
+            height: 200px; /* Default height for activity line chart */
+            width: 100%;
+        }
+
+        /* Responsive adjustments for chart containers */
+        @media (max-width: 768px) {
+            .chart-container {
+                height: 220px;
+            }
+
+            .activity-chart-container {
+                height: 180px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .chart-container {
+                height: 200px;
+            }
+
+            .activity-chart-container {
+                height: 160px;
+            }
+        }
+
+        .risk-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px; /* pill shape */
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .risk-badge.risk-high {
+            background-color: rgba(255, 68, 68, 0.2);
+            color: var(--danger-red);
+        }
+
+        .risk-badge.risk-medium {
+            background-color: rgba(255, 165, 0, 0.2);
+            color: orange;
+        }
+
+        .risk-badge.risk-low {
+            background-color: rgba(68, 255, 68, 0.2);
+            color: var(--safe-green);
+        }
+
+        .threat-indicator {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .threat-indicator span:first-child {
+            flex-basis: 120px;
+            margin-right: 1rem;
+        }
+
+        .threat-bar {
+            flex-grow: 1;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .threat-count {
+            width: 40px;
+            text-align: right;
+            margin-left: 1rem;
+            font-weight: bold;
+        }
+
+        .tech-icon {
+            font-size: 3rem;
+            color: var(--neon-blue);
+            margin-bottom: 1rem;
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: bold;
+            color: var(--neon-blue);
+            margin-bottom: 0.5rem;
+        }
+
+        .timeline {
+            position: relative;
+            padding: 1rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(-50%);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            width: 12px;
+            height: 12px;
+            background: var(--neon-blue);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1;
+        }
+
+        .timeline-item:nth-child(odd) {
+            left: -25%;
+            text-align: right;
+        }
+
+        .timeline-item:nth-child(even) {
+            left: 25%;
+            text-align: left;
+        }
+
+        @media (max-width: 768px) {
+            .timeline::before {
+                left: 20px;
+            }
+            .timeline-item {
+                left: 0 !important;
+                text-align: left !important;
+                padding-left: 40px;
+            }
+            .timeline-item::before {
+                left: 20px;
+                transform: translate(-50%, -50%);
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Navigation -->
+    <nav class="glass-card fixed top-0 left-0 right-0 z-50 mx-4 mt-4 rounded-xl">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/38cbdb3a-0316-4a2b-ae0e-30938dfd6dd8.png" alt="Digital shield icon with blue glowing outline representing cybersecurity protection" class="w-10 h-10 rounded-lg neon-glow">
+                <span class="font-orbitron text-xl font-bold text-white">APK Guardian</span>
+            </div>
+
+            <div class="nav-links hidden md:flex items-center space-x-6">
+                <a href="#" class="nav-link text-white hover:text-[#0ff]" onclick="showPage('home')">Home</a>
+                <a href="#" class="nav-link text-white hover:text-[#0ff]" onclick="showPage('upload')">Upload APK</a>
+                <a href="#" class="nav-link text-white hover:text-[#0ff]" onclick="showPage('batch')">Batch Scan</a>
+                <a href="#" class="nav-link text-white hover:text-[#0ff]" onclick="showPage('dashboard')">Dashboard</a>
+                <a href="#" class="nav-link text-white hover:text-[#0ff]" onclick="showPage('reports')">Reports</a>
+                <a href="#" class="nav-link text-white hover:text-[#0ff]" onclick="showPage('about')">About</a>
+            </div>
+
+            <div class="hamburger-menu md:hidden">
+                <button onclick="toggleMobileMenu()" class="text-white p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Home Page -->
+    <div id="home" class="page active pt-24 pb-16">
+        <div class="container mx-auto px-4">
+            <!-- Hero Section -->
+            <div class="text-center mb-16">
+                <h1 class="font-orbitron text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-[#0ff] to-[#00b3b3] bg-clip-text text-transparent">
+                    Fake Banking APK Detector
+                </h1>
+                <p class="text-xl md:text-2xl text-[#b0b0b0] mb-8 max-w-3xl mx-auto">
+                    Detect malicious APKs with advanced static, dynamic, and AI-powered analysis. Protect your digital banking experience.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button onclick="showPage('upload')" class="btn-neon px-8 py-4 rounded-full text-lg font-semibold">
+                        <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                        Upload APK
+                    </button>
+                    <button onclick="showPage('batch')" class="glass-card px-8 py-4 rounded-full text-lg font-semibold border border-[#0ff] text-[#0ff] hover:bg-[#0ff] hover:text-black transition-colors">
+                        <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
+                        </svg>
+                        Batch Scan
+                    </button>
+                    <button onclick="showPage('dashboard')" class="glass-card px-8 py-4 rounded-full text-lg font-semibold border border-[#44ff44] text-[#44ff44] hover:bg-[#44ff44] hover:text-black transition-colors">
+                        <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                        Dashboard
+                    </button>
+                </div>
+            </div>
+
+            <!-- Features Grid -->
+            <div class="grid md:grid-cols-3 gap-8 mb-16">
+                <div class="glass-card p-6 rounded-xl text-center">
+                    <div class="w-16 h-16 mx-auto mb-4 bg-[#0ff] rounded-full flex items-center justify-center">
+                        <svg class="w-8 h-8 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="font-orbitron text-xl mb-3">Static Analysis</h3>
+                    <p class="text-[#b0b0b0]">Deep code inspection and permission analysis to identify suspicious patterns and potential threats.</p>
+                </div>
+
+                <div class="glass-card p-6 rounded-xl text-center">
+                    <div class="w-16 h-16 mx-auto mb-4 bg-[#0ff] rounded-full flex items-center justify-center">
+                        <svg class="w-8 h-8 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="font-orbitron text-xl mb-3">Dynamic Analysis</h3>
+                    <p class="text-[#b0b0b0]">Real-time behavioral monitoring and sandbox execution to detect runtime malicious activities.</p>
+                </div>
+
+                <div class="glass-card p-6 rounded-xl text-center">
+                    <div class="w-16 h-16 mx-auto mb-4 bg-[#0ff] rounded-full flex items-center justify-center">
+                        <svg class="w-8 h-8 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="font-orbitron text-xl mb-3">AI-Powered Detection</h3>
+                    <p class="text-[#b0b0b0]">Machine learning algorithms trained on millions of samples to identify zero-day threats and advanced malware.</p>
+                </div>
+            </div>
+
+            <!-- Stats Preview -->
+            <div class="glass-card p-8 rounded-xl">
+                <h2 class="font-orbitron text-2xl mb-6 text-center">Trusted by Financial Institutions Worldwide</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div class="text-center">
+                        <div class="text-3xl font-bold text-[#0ff]" id="homeTotalApksScanned">0</div>
+                        <div class="text-[#b0b0b0]">APKs Analyzed</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-3xl font-bold text-[#44ff44]">98%</div>
+                        <div class="text-[#b0b0b0]">Detection Rate</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-3xl font-bold text-[#0ff]">0</div>
+                        <div class="text-[#b0b0b0]">Banking Partners</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-3xl font-bold text-[#ff4444]">2%</div>
+                        <div class="text-[#b0b0b0]">False Positives</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Page -->
+    <div id="upload" class="page pt-24 pb-16">
+        <div class="container mx-auto px-4 max-w-4xl">
+            <h2 class="font-orbitron text-3xl md:text-4xl text-center mb-8">Upload APK for Analysis</h2>
+
+            <div class="upload-zone glass-card p-8 text-center mb-6" id="singleUploadZone">
+                <svg class="w-16 h-16 mx-auto mb-4 text-[#0ff]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+                <h3 class="text-xl font-semibold mb-2">Drag & Drop your APK file</h3>
+                <p class="text-[#b0b0b0] mb-4">Or click to browse your files</p>
+                <input type="file" id="apkFile" class="hidden" accept=".apk">
+                <button onclick="document.getElementById('apkFile').click()" class="btn-neon px-6 py-2 rounded-full">
+                    Browse Files
+                </button>
+            </div>
+
+            <div id="fileInfo" class="glass-card p-6 mb-6 hidden">
+                <h3 class="font-semibold mb-4">File Information</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <span class="text-[#b0b0b0]">Name:</span>
+                        <span id="fileName" class="block font-mono"></span>
+                    </div>
+                    <div>
+                        <span class="text-[#b0b0b0]">Size:</span>
+                        <span id="fileSize" class="block font-mono"></span>
+                    </div>
+                    <div>
+                        <span class="text-[#b0b0b0]">SHA-256:</span>
+                        <span id="fileHash" class="block font-mono text-sm"></span>
+                    </div>
+                    <div>
+                        <span class="text-[#b0b0b0]">Type:</span>
+                        <span id="fileType" class="block font-mono">Android Package (APK)</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center">
+                <button id="scanButton" onclick="startScan()" class="btn-neon px-8 py-3 rounded-full text-lg font-semibold mb-4" disabled>
+                    Scan Now
+                </button>
+
+                <div id="statusIndicator" class="hidden">
+                    <div class="flex items-center justify-center space-x-3 mb-4 scanning-animation">
+                        <div class="w-3 h-3 bg-[#0ff] rounded-full animate-pulse"></div>
+                        <span class="text-[#0ff] font-semibold">Scanning in progress...</span>
+                    </div>
+                    <div class="w-full bg-gray-700 rounded-full h-2 mb-4">
+                        <div id="progressBar" class="bg-[#0ff] h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div id="scanResult" class="glass-card p-6 hidden">
+                    <h3 class="font-semibold mb-4 text-center">Scan Complete</h3>
+                    <div id="resultContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Batch Scan Page -->
+    <div id="batch" class="page pt-24 pb-16">
+        <div class="container mx-auto px-4 max-w-4xl">
+            <h2 class="font-orbitron text-3xl md:text-4xl text-center mb-8">Batch APK Analysis</h2>
+
+            <div class="upload-zone glass-card p-8 text-center mb-6" id="batchUploadZone">
+                <svg class="w-16 h-16 mx-auto mb-4 text-[#0ff]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+                <h3 class="text-xl font-semibold mb-2">Drag & Drop multiple APK files</h3>
+                <p class="text-[#b0b0b0] mb-4">Or click to browse your files</p>
+                <input type="file" id="batchApkFiles" class="hidden" accept=".apk" multiple>
+                <button onclick="document.getElementById('batchApkFiles').click()" class="btn-neon px-6 py-2 rounded-full">
+                    Browse Files
+                </button>
+            </div>
+
+            <div id="batchFileInfo" class="glass-card p-6 mb-6 hidden">
+                <h3 class="font-semibold mb-4">Files to Scan (<span id="batchFileCount">0</span>)</h3>
+                <div id="batchFileList" class="space-y-2">
+                    <!-- File list will be populated here -->
+                </div>
+            </div>
+
+            <div class="text-center">
+                <button id="batchScanButton" onclick="startBatchScan()" class="btn-neon px-8 py-3 rounded-full text-lg font-semibold mb-4" disabled>
+                    Start Batch Scan
+                </button>
+
+                <div id="batchStatusIndicator" class="hidden">
+                    <div class="flex items-center justify-center space-x-3 mb-4 scanning-animation">
+                        <div class="w-3 h-3 bg-[#0ff] rounded-full animate-pulse"></div>
+                        <span class="text-[#0ff] font-semibold">Batch scanning in progress...</span>
+                    </div>
+                    <div class="w-full bg-gray-700 rounded-full h-2 mb-4">
+                        <div id="batchProgressBar" class="bg-[#0ff] h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div id="batchScanResult" class="glass-card p-6 hidden">
+                    <h3 class="font-semibold mb-4 text-center">Batch Scan Complete</h3>
+                    <div id="batchResultContent" class="text-left">
+                        <!-- Batch scan results will be displayed here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Page -->
+<div id="dashboard" class="page pt-24 pb-16">
+    <div class="container mx-auto px-4">
+        <h2 class="font-orbitron text-3xl md:text-4xl text-center mb-8">APK Analysis Dashboard</h2>
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="glass-card p-6 text-center">
+                <div class="text-3xl font-bold text-[#0ff] mb-2" id="totalApksScanned">0</div>
+                <div class="text-[#b0b0b0]">Total APKs Scanned</div>
+                <div class="text-sm text-[#0ff] mt-2">Updated in real-time</div>
+            </div>
+
+            <div class="glass-card p-6 text-center">
+                <div class="text-3xl font-bold text-[#ff4444] mb-2" id="maliciousDetected">0</div>
+                <div class="text-[#b0b0b0]">Malicious APKs Detected</div>
+                <div class="text-sm text-[#ff4444] mt-2">High risk threats</div>
+            </div>
+
+            <div class="glass-card p-6 text-center">
+                <div class="text-3xl font-bold text-[#44ff44] mb-2" id="trustedCertificates">0</div>
+                <div class="text-[#b0b0b0]">Trusted Certificates</div>
+                <div class="text-sm text-[#44ff44] mt-2">Verified & Safe</div>
+            </div>
+
+            <div class="glass-card p-6 text-center">
+                <div class="text-3xl font-bold text-[#ff4444] mb-2" id="highRiskPermissions">0</div>
+                <div class="text-[#b0b0b0]">High-Risk Permissions</div>
+                <div class="text-sm text-[#ff4444] mt-2">Needs Review</div>
+            </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- Donut Chart -->
+            <div class="glass-card p-6">
+                <h3 class="font-semibold mb-4">APK Safety Distribution</h3>
+                <div class="chart-container">
+                    <canvas id="safetyChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Bar Chart -->
+            <div class="glass-card p-6">
+                <h3 class="font-semibold mb-4">Top Dangerous Permissions</h3>
+                <div class="chart-container">
+                    <canvas id="permissionsChart"></canvas>
+                </div>
+                <div class="flex justify-center space-x-4 mt-4">
+                    <button id="permissionsZoomIn" class="btn-neon px-4 py-2 rounded-lg text-sm">Zoom In</button>
+                    <button id="permissionsZoomOut" class="btn-neon px-4 py-2 rounded-lg text-sm">Zoom Out</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Scans -->
+        <div class="glass-card p-6">
+            <h3 class="font-semibold mb-4">Recent Scan Activity</h3>
+            <div class="activity-chart-container">
+                <canvas id="activityChart"></canvas>
+            </div>
+            <div class="flex justify-center space-x-4 mt-4">
+                <button id="activityZoomIn" class="btn-neon px-4 py-2 rounded-lg text-sm">Zoom In</button>
+                <button id="activityZoomOut" class="btn-neon px-4 py-2 rounded-lg text-sm">Zoom Out</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+   <!-- Reports Page -->
+<div id="reports" class="page pt-24 pb-16">
+    <div class="pt-24 pb-8">
+        <div class="container mx-auto px-4">
+            <div class="glass-card p-8 mb-8">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center">
+                    <div>
+                        <h1 class="font-orbitron text-3xl md:text-4xl mb-2">Security Analysis Report</h1>
+                        <p class="text-[#b0b0b0]">Generated on: <span id="reportDate"></span></p>
+                    </div>
+                    <div class="mt-4 md:mt-0">
+                        <div id="reportVerdict" class="text-2xl font-bold mb-2 verdict-dangerous"></div>
+                        <div id="reportRisk" class="risk-badge"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File Information -->
+            <div class="glass-card p-6 mb-8">
+                <h2 class="font-orbitron text-2xl mb-4">APK Information</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                        <p class="text-[#b0b0b0]">File Name</p>
+                        <p id="reportFileName" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <p class="text-[#b0b0b0]">Package Name</p>
+                        <p id="reportPackageName" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <p class="text-[#b0b0b0]">Version</p>
+                        <p id="reportVersion" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <p class="text-[#b0b0b0]">Size</p>
+                        <p id="reportFileSize" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <p class="text-[#b0b0b0]">SHA-256</p>
+                        <p id="reportSha256" class="font-mono text-sm"></p>
+                    </div>
+                    <div>
+                        <p class="text-[#b0b0b0]">MD5</p>
+                        <p id="reportMd5" class="font-mono text-sm"></p>
+                    </div>
+                    <div>
+                        <p class="text-[#b0b0b0]">Analyzed</p>
+                        <p id="reportAnalyzed" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <p class="text-[#b0b0b0]">Analysis Time</p>
+                        <p id="reportAnalysisTime" class="font-medium"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Executive Summary -->
+            <div class="glass-card p-6 mb-8">
+                <h2 class="font-orbitron text-2xl mb-4">Executive Summary</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div class="text-center p-4 rounded-lg bg-red-900/20">
+                        <div id="criticalCount" class="text-3xl font-bold text-[#ff4444]"></div>
+                        <div class="text-[#b0b0b0]">Critical Issues</div>
+                    </div>
+                    <div class="text-center p-4 rounded-lg bg-orange-900/20">
+                        <div id="warningCount" class="text-3xl font-bold text-orange-400"></div>
+                        <div class="text-[#b0b0b0]">Warnings</div>
+                    </div>
+                    <div class="text-center p-4 rounded-lg bg-green-900/20">
+                        <div id="safeCount" class="text-3xl font-bold text-[#44ff44]"></div>
+                        <div class="text-[#b0b0b0]">Safe Indicators</div>
+                    </div>
+                </div>
+                <p id="executiveSummary" class="text-[#b0b0b0] mb-4"></p>
+                <p class="text-[#b0b0b0]">
+                    <span id="recommendationVerdict" class="verdict-dangerous"></span>
+                </p>
+            </div>
+
+            <!-- Security Score -->
+            <div class="glass-card p-6 mb-8">
+                <h2 class="font-orbitron text-2xl mb-4">Security Score</h2>
+                <div class="flex items-center mb-6">
+                    <div class="w-32 h-32 relative mr-6">
+                        <canvas id="scoreChart"></canvas>
+                        <div class="absolute inset-0 flex items-center justify-center flex-col">
+                            <div id="securityScore" class="text-3xl font-bold text-[#ff4444]"></div>
+                            <div class="text-sm text-[#b0b0b0]">Risk</div>
+                        </div>
+                    </div>
+                    <div class="flex-grow">
+                        <div class="threat-indicator">
+                            <span class="text-[#b0b0b0]">Static Analysis</span>
+                            <div class="threat-bar bg-gray-700">
+                                <div id="staticBar" class="threat-bar bg-[#ff4444] h-full rounded-full"></div>
+                            </div>
+                            <span id="staticCount" class="threat-count text-[#ff4444]"></span>
+                        </div>
+                        <div class="threat-indicator">
+                            <span class="text-[#b0b0b0]">Dynamic Analysis</span>
+                            <div class="threat-bar bg-gray-700">
+                                <div id="dynamicBar" class="threat-bar bg-[#ff4444] h-full rounded-full"></div>
+                            </div>
+                            <span id="dynamicCount" class="threat-count text-[#ff4444]"></span>
+                        </div>
+                        <div class="threat-indicator">
+                            <span class="text-[#b0b0b0]">Privacy Risk</span>
+                            <div class="threat-bar bg-gray-700">
+                                <div id="privacyBar" class="threat-bar bg-orange-400 h-full rounded-full"></div>
+                            </div>
+                            <span id="privacyCount" class="threat-count text-orange-400"></span>
+                        </div>
+                        <div class="threat-indicator">
+                            <span class="text-[#b0b0b0]">Reputation</span>
+                            <div class="threat-bar bg-gray-700">
+                                <div id="reputationBar" class="threat-bar bg-[#ff4444] h-full rounded-full"></div>
+                            </div>
+                            <span id="reputationCount" class="threat-count text-[#ff4444]"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Threat Indicators -->
+            <div class="glass-card p-6 mb-8">
+                <h2 class="font-orbitron text-2xl mb-4">Threat Indicators</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="font-semibold mb-3 text-[#0ff]">Detected Malware Families</h3>
+                        <ul id="malwareFamilies" class="space-y-2"></ul>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold mb-3 text-[#0ff]">Behavioral Analysis</h3>
+                        <ul id="behaviorAnalysis" class="space-y-2"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Permissions Analysis -->
+            <div class="glass-card p-6 mb-8">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="font-orbitron text-2xl">Permissions Analysis</h2>
+                    <div id="permissionsSummary" class="text-[#b0b0b0]"></div>
+                </div>
+                <div id="permissionsList" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6"></div>
+                <!-- <div class="small-chart-container">
+                    <canvas id="permissionsChart"></canvas>
+                </div> -->
+            </div>
+
+            <!-- Network Analysis -->
+            <div class="glass-card p-6 mb-8">
+                <h2 class="font-orbitron text-2xl mb-4">Network Analysis</h2>
+                <div id="networkDomains" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                <!-- <div class="small-chart-container mt-6">
+                    <canvas id="networkChart"></canvas>
+                </div> -->
+            </div>
+
+            <!-- Recommendations -->
+            <div class="glass-card p-6 mb-8">
+                <h2 class="font-orbitron text-2xl mb-4">Recommendations</h2>
+                <div id="recommendations"></div>
+            </div>
+
+            <!-- External Scan Results -->
+            <div class="glass-card p-6 mb-8">
+                <h2 class="font-orbitron text-2xl mb-4">External Scan Results</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="border-b border-gray-700">
+                                <th class="py-3 px-4 text-left">Scanner</th>
+                                <th class="py-3 px-4 text-left">Result</th>
+                                <th class="py-3 px-4 text-left">Detection</th>
+                                <th class="py-3 px-4 text-left">Last Updated</th>
+                            </tr>
+                        </thead>
+                        <tbody id="externalScanResults"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+                     <!-- Footer Actions -->
+            <div class="glass-card p-6 mb-8">
+                <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div>
+                        <h3 class="font-semibold">Report Actions</h3>
+                        <p class="text-sm text-[#b0b0b0]">Download or share this security report</p>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button class="btn-neon px-4 py-2 rounded-lg flex items-center" onclick="downloadPdfReport()">
+                            <i class="fas fa-file-pdf mr-2"></i> PDF Report
+                        </button>
+                        <button class="glass-card px-4 py-2 rounded-lg border border-[#0ff] text-[#0ff] hover:bg-[#0ff] hover:text-black transition-colors flex items-center" onclick="downloadCsvReport()">
+                            <i class="fas fa-file-csv mr-2"></i> CSV Export
+                        </button>
+                        <button class="glass-card px-4 py-2 rounded-lg border border-[#44ff44] text-[#44ff44] hover:bg-[#44ff44] hover:text-black transition-colors flex items-center" onclick="shareReport()">
+                            <i class="fas fa-share-alt mr-2"></i> Share
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+    <!-- About Page Content -->
+     <div id="about" class="page pt-24 pb-16">
+    <div class="pt-24 pb-16">
+        <div class="container mx-auto px-4">
+            <!-- Hero Section -->
+            <div class="text-center mb-16">
+                <h1 class="font-orbitron text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-[#0ff] to-[#00b3b3] bg-clip-text text-transparent">
+                    About APK Guardian
+                </h1>
+                <p class="text-xl md:text-2xl text-[#b0b0b0] max-w-3xl mx-auto">
+                    Protecting the digital banking ecosystem from malicious Android applications through advanced threat detection and analysis.
+                </p>
+            </div>
+
+            <!-- Mission Section -->
+            <div class="glass-card p-8 mb-16">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                    <div>
+                        <h2 class="font-orbitron text-3xl mb-6 text-[#0ff]">Our Mission</h2>
+                        <p class="text-[#b0b0b0] mb-6">
+                            APK Guardian was founded with a single purpose: to create a safer digital banking environment for millions of users worldwide.
+                            In an era where mobile banking has become the norm, the threat of malicious applications targeting financial information has grown exponentially.
+                        </p>
+                        <p class="text-[#b0b0b0]">
+                            Our mission is to provide comprehensive security analysis for Android applications, with a special focus on banking and financial apps,
+                            using cutting-edge technology to detect and prevent threats before they can cause harm.
+                        </p>
+                    </div>
+                    <div class="flex justify-center">
+                        <div class="relative">
+                            <div class="w-64 h-64 rounded-full bg-[#0ff] opacity-20 absolute -top-4 -left-4"></div>
+                            <div class="w-64 h-64 rounded-full bg-[#44ff44] opacity-20 absolute -bottom-4 -right-4"></div>
+                            <div class="relative glass-card p-6 rounded-2xl">
+                                <i class="fas fa-shield-alt tech-icon mb-4"></i>
+                                <h3 class="text-xl font-semibold mb-2">Security First</h3>
+                                <p class="text-[#b0b0b0]">Protecting users from financial fraud and data theft</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Section -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-16">
+                <div class="glass-card p-6 text-center">
+                    <div class="stat-number" id="aboutTotalApksAnalyzed">0</div>
+                    <div class="text-[#b0b0b0]">APKs Analyzed</div>
+                </div>
+                <div class="glass-card p-6 text-center">
+                    <div class="stat-number">98%</div>
+                    <div class="text-[#b0b0b0]">Detection Rate</div>
+                </div>
+                <div class="glass-card p-6 text-center">
+                    <div class="stat-number">0</div>
+                    <div class="text-[#b0b0b0]">Banking Partners</div>
+                </div>
+                <div class="glass-card p-6 text-center">
+                    <div class="stat-number">2%</div>
+                    <div class="text-[#b0b0b0]">False Positives</div>
+                </div>
+            </div>
+
+            <!-- Features Section -->
+            <div class="mb-16">
+                <h2 class="font-orbitron text-3xl text-center mb-12 text-[#0ff]">How It Works</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="feature-card glass-card p-6 rounded-xl text-center">
+                        <div class="w-16 h-16 mx-auto mb-4 bg-[#0ff] rounded-full flex items-center justify-center">
+                            <i class="fas fa-code text-black text-2xl"></i>
+                        </div>
+                        <h3 class="font-orbitron text-xl mb-3">Static Analysis</h3>
+                        <p class="text-[#b0b0b0]">Deep code inspection, permission analysis, and manifest examination to identify suspicious patterns without executing the application.</p>
+                        <ul class="mt-4 text-left text-sm text-[#b0b0b0] space-y-2">
+                            <li class="flex items-center">
+                                <i class="fas fa-check-circle text-[#44ff44] mr-2"></i>
+                                Code decompilation and inspection
+                            </li>
+                            <li class="flex items-center">
+                                <i class="fas fa-check-circle text-[#44ff44] mr-2"></i>
+                                Permission risk assessment
+                            </li>
+                            <li class="flex items-center">
+                                <i class="fas fa-check-circle text-[#44ff44] mr-2"></i>
+                                Certificate validation
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="feature-card glass-card p-6 rounded-xl text-center">
+                        <div class="w-16 h-16 mx-auto mb-4 bg-[#0ff] rounded-full flex items-center justify-center">
+                            <i class="fas fa-play text-black text-2xl"></i>
+                        </div>
+                        <h3 class="font-orbitron text-xl mb-3">Dynamic Analysis</h3>
+                        <p class="text-[#b0b0b0]">Real-time behavioral monitoring in a secure sandbox environment to detect runtime malicious activities and network communications.</p>
+                        <ul class="mt-4 text-left text-sm text-[#b0b0b0] space-y-2">
+                            <li class="flex items-center">
+                                <i class="fas fa-check-circle text-[#44ff44] mr-2"></i>
+                                Runtime behavior monitoring
+                            </li>
+                            <li class="flex items-center">
+                                <i class="fas fa-check-circle text-[#44ff44] mr-2"></i>
+                                Network traffic analysis
+                            </li>
+                            <li class="flex items-center">
+                                <i class="fas fa-check-circle text-[#44ff44] mr-2"></i>
+                                System call tracing
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="feature-card glass-card p-6 rounded-xl text-center">
+                        <div class="w-16 h-16 mx-auto mb-4 bg-[#0ff] rounded-full flex items-center justify-center">
+                            <i class="fas fa-brain text-black text-2xl"></i>
+                        </div>
+                        <h3 class="font-orbitron text-xl mb-3">AI-Powered Detection</h3>
+                        <p class="text-[#b0b0b0]">Machine learning algorithms trained on millions of samples to identify zero-day threats and advanced polymorphic malware.</p>
+                        <ul class="mt-4 text-left text-sm text-[#b0b0b0] space-y-2">
+                            <li class="flex items-center">
+                                <i class="fas fa-check-circle text-[#44ff44] mr-2"></i>
+                                Behavioral pattern recognition
+                            </li>
+                            <li class="flex items-center">
+                                <i class="fas fa-check-circle text-[#44ff44] mr-2"></i>
+                                Anomaly detection
+                            </li>
+                            <li class="flex items-center">
+                                <i class="fas fa-check-circle text-[#44ff44] mr-2"></i>
+                                Threat intelligence integration
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Technology Stack -->
+            <div class="glass-card p-8 mb-16">
+                <h2 class="font-orbitron text-3xl text-center mb-12 text-[#0ff]">Technology Stack</h2>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+                    <div>
+                        <i class="fab fa-python tech-icon mb-4"></i>
+                        <h3 class="font-semibold mb-2">Python</h3>
+                        <p class="text-sm text-[#b0b0b0]">Backend processing and analysis</p>
+                    </div>
+                    <div>
+                        <i class="fab fa-node-js tech-icon mb-4"></i>
+                        <h3 class="font-semibold mb-2">Node.js</h3>
+                        <p class="text-sm text-[#b0b0b0]">API services and real-time processing</p>
+                    </div>
+                    
+                    <div>
+                        <i class="fas fa-robot tech-icon mb-4"></i>
+                        <h3 class="font-semibold mb-2">Virustotal api</h3>
+                        <p class="text-sm text-[#b0b0b0]">APK analysis and emulation</p>
+                    </div>
+                    
+                    <div>
+                        <i class="fas fa-brain tech-icon mb-4"></i>
+                        <h3 class="font-semibold mb-2">AI</h3>
+                        <p class="text-sm text-[#b0b0b0]">Machine learning models</p>
+                    </div>
+                    <div>
+                        <i class="fas fa-code tech-icon mb-4"></i>
+                        <h3 class="font-semibold mb-2">HTML</h3>
+                        <p class="text-sm text-[#b0b0b0]">Frontend dashboard</p>
+                    </div>
+                    <div>
+                        <i class="fas fa-server tech-icon mb-4"></i>
+                        <h3 class="font-semibold mb-2">Docker</h3>
+                        <p class="text-sm text-[#b0b0b0]">Containerization and deployment</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timeline 
+            <div class="mb-16">
+                <h2 class="font-orbitron text-3xl text-center mb-12 text-[#0ff]">Our Journey</h2>
+
+                <div class="glass-card p-8">
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <h3 class="font-semibold text-xl mb-2">2018 - Foundation</h3>
+                            <p class="text-[#b0b0b0]">APK Guardian was founded by cybersecurity experts who recognized the growing threat of banking malware on Android devices.</p>
+                        </div>
+                        <div class="timeline-item">
+                            <h3 class="font-semibold text-xl mb-2">2019 - MVP Launch</h3>
+                            <p class="text-[#b0b0b0]">Launched our first minimum viable product with basic static analysis capabilities and partnerships with 5 regional banks.</p>
+                        </div>
+                        <div class="timeline-item">
+                            <h3 class="font-semibold text-xl mb-2">2020 - Dynamic Analysis</h3>
+                            <p class="text-[#b0b0b0]">Introduced sandboxed dynamic analysis and expanded our threat database to over 50,000 known malware signatures.</p>
+                        </div>
+                        <div class="timeline-item">
+                            <h3 class="font-semibold text-xl mb-2">2021 - AI Integration</h3>
+                            <p class="text-[#b0b0b0]">Implemented machine learning algorithms for advanced threat detection, reducing false positives by 75%.</p>
+                        </div>
+                        <div class="timeline-item">
+                            <h3 class="font-semibold text-xl mb-2">2022 - Global Expansion</h3>
+                            <p class="text-[#b0b0b0]">Expanded services to Europe and Asia, forming partnerships with over 50 financial institutions worldwide.</p>
+                        </div>
+                        <div class="timeline-item">
+                            <h3 class="font-semibold text-xl mb-2">2023 - Real-time Protection</h3>
+                            <p class="text-[#b0b0b0]">Launched real-time scanning API for app stores and financial institutions with sub-5 second analysis time.</p>
+                        </div>
+                    </div>
+                </div>
+            </div> -->
+
+            <!-- Team Section -->
+            <div class="mb-16">
+                <h2 class="font-orbitron text-3xl text-center mb-12 text-[#0ff]">Our Team</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6">
+                    <div class="team-card glass-card p-6 text-center">
+                        <div class="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-[#0ff] to-[#00b3b3] rounded-full flex items-center justify-center">
+                            <span class="text-black text-3xl font-bold">SY</span>
+                        </div>
+                        <h3 class="font-semibold text-xl mb-2">Sumit Yadav</h3>
+                        <p class="text-[#0ff] mb-3">Team Leader</p>
+                        <p class="text-sm text-[#b0b0b0]">Cybersecurity engineer and student with expertise in Penetration Testing, Cryptography, Programming, and Advanced Security Research.</p>
+                    </div>
+
+                    <div class="team-card glass-card p-6 text-center">
+                        <div class="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-[#0ff] to-[#00b3b3] rounded-full flex items-center justify-center">
+                            <span class="text-black text-3xl font-bold">KD</span>
+                        </div>
+                        <h3 class="font-semibold text-xl mb-2">Kirten dubey</h3>
+                        <p class="text-[#0ff] mb-3">Member</p>
+                        <p class="text-sm text-[#b0b0b0]">Cybersecurity engineer and student with expertise in SOC, Cryptography, Programming, and Cloud Security. </p>
+                    </div>
+
+                    <div class="team-card glass-card p-6 text-center">
+                        <div class="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-[#0ff] to-[#00b3b3] rounded-full flex items-center justify-center">
+                            <span class="text-black text-3xl font-bold">RS</span>
+                        </div>
+                        <h3 class="font-semibold text-xl mb-2">Ruchika Sharma</h3>
+                        <p class="text-[#0ff] mb-3">Member</p>
+                        <p class="text-sm text-[#b0b0b0]">Artificial intelligence engineer and student with expertise in Machine Learning, Programming and Deep Learning .</p>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Partners Section 
+            <div class="mb-16">
+                <h2 class="font-orbitron text-3xl text-center mb-12 text-[#0ff]">Our Partners</h2>
+
+                <div class="glass-card p-8">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-8 items-center">
+                        <div class="partner-logo text-center">
+                            <i class="fas fa-university text-4xl mb-2"></i>
+                            <p class="font-semibold">Global Bank Inc.</p>
+                        </div>
+                        <div class="partner-logo text-center">
+                            <i class="fas fa-money-check-alt text-4xl mb-2"></i>
+                            <p class="font-semibold">Secure Finance</p>
+                        </div>
+                        <div class="partner-logo text-center">
+                            <i class="fas fa-mobile-alt text-4xl mb-2"></i>
+                            <p class="font-semibold">AppVenture Capital</p>
+                        </div>
+                        <div class="partner-logo text-center">
+                            <i class="fas fa-shield-alt text-4xl mb-2"></i>
+                            <p class="font-semibold">CyberSafe Foundation</p>
+                        </div>
+                    </div>
+                </div>
+            </div> -->
+
+            <!-- Contact CTA -->
+            <div class="glass-card p-8 text-center">
+                <h2 class="font-orbitron text-3xl mb-6 text-[#0ff]">Ready to Secure Your Applications?</h2>
+                <p class="text-xl text-[#b0b0b0] mb-8 max-w-2xl mx-auto">
+                    Join leading financial institutions in the fight against mobile banking threats.
+                    Contact us to learn how APK Guardian can protect your customers and your business.
+                </p>
+                
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Footer 
+    <footer class="glass-card mx-4 mt-8 mb-4 rounded-xl p-8">
+        <div class="container mx-auto">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6">
+                <div class="flex items-center space-x-3 mb-4 md:mb-0">
+                    <div class="w-10 h-10 rounded-lg neon-glow bg-[#0ff] flex items-center justify-center">
+                        <i class="fas fa-shield-alt text-black"></i>
+                    </div>
+                    <span class="font-orbitron text-xl font-bold text-white">APK Guardian</span>
+                </div>
+                <div class="flex space-x-6">
+                    <a href="#" class="text-[#b0b0b0] hover:text-[#0ff] transition-colors">
+                        <i class="fab fa-twitter"></i>
+                    </a>
+                    <a href="#" class="text-[#b0b0b0] hover:text-[#0ff] transition-colors">
+                        <i class="fab fa-linkedin"></i>
+                    </a>
+                    <a href="#" class="text-[#b0b0b0] hover:text-[#0ff] transition-colors">
+                        <i class="fab fa-github"></i>
+                    </a>
+                    <a href="#" class="text-[#b0b0b0] hover:text-[#0ff] transition-colors">
+                        <i class="fab fa-medium"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="flex flex-col md:flex-row justify-between items-center pt-6 border-t border-gray-800">
+                <p class="text-[#b0b0b0] text-sm mb-4 md:mb-0">
+                    &copy; 2023 APK Guardian. All rights reserved.
+                </p>
+                <div class="flex space-x-6">
+                    <a href="#" class="text-[#b0b0b0] hover:text-[#0ff] transition-colors text-sm">Privacy Policy</a>
+                    <a href="#" class="text-[#b0b0b0] hover:text-[#0ff] transition-colors text-sm">Terms of Service</a>
+                    <a href="#" class="text-[#b0b0b0] hover:text-[#0ff] transition-colors text-sm">Security</a>
+                    <a href="#" class="text-[#b0b0b0] hover:text-[#0ff] transition-colors text-sm">Careers</a>
+                </div>
+            </div>
+    </div>
+    </footer>-->
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+        // Page Navigation
+        function showPage(pageId, reportId = null) {
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            document.getElementById(pageId).classList.add('active');
+
+            // Close mobile menu if open
+            document.querySelector('.nav-links').classList.remove('active');
+
+            // Initialize charts if dashboard is shown
+            if (pageId === 'dashboard') {
+                fetchDashboardData(); // Fetch and render dashboard data
+            } else if (pageId === 'reports') {
+                loadReport(reportId); // Load specific report data
+            } else if (pageId === 'home' || pageId === 'about') {
+                fetchDashboardDataForHomeAbout(); // Update stats on home/about
+            }
+        }
+
+        function toggleMobileMenu() {
+            document.querySelector('.nav-links').classList.toggle('active');
+        }
+
+        // Helper function to format file size
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // --- Upload.js ---
+        // Elements
+        const singleUploadZone = document.getElementById('singleUploadZone');
+        const apkInput = document.getElementById('apkFile');
+        const fileInfoDiv = document.getElementById('fileInfo');
+        const fileNameEl = document.getElementById('fileName');
+        const fileSizeEl = document.getElementById('fileSize');
+        const fileHashEl = document.getElementById('fileHash');
+        const scanButton = document.getElementById('scanButton');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const progressBar = document.getElementById('progressBar');
+        const scanResult = document.getElementById('scanResult');
+        const resultContent = document.getElementById('resultContent');
+
+        // --- Drag & Drop Support ---
+        singleUploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            singleUploadZone.classList.add('dragover');
+        });
+
+        singleUploadZone.addEventListener('dragleave', () => {
+            singleUploadZone.classList.remove('dragover');
+        });
+
+        singleUploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            singleUploadZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleSingleFile(files[0]);
+            }
+        });
+
+        // --- File Browse Support ---
+        apkInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleSingleFile(e.target.files[0]);
+            }
+        });
+
+        // --- Handle File Selection ---
+        function handleSingleFile(file) {
+            if (!file.name.toLowerCase().endsWith('.apk')) {
+                alert('Please upload a valid APK file (.apk extension)');
+                fileInfoDiv.classList.add('hidden');
+                scanButton.disabled = true;
+                return;
+            }
+
+            // Reset UI
+            fileInfoDiv.classList.remove('hidden');
+            scanButton.disabled = false;
+            scanResult.classList.add('hidden');
+            statusIndicator.classList.add('hidden');
+            progressBar.style.width = '0%';
+
+            // Fill info
+            fileNameEl.textContent = file.name;
+            fileSizeEl.textContent = formatFileSize(file.size);
+            fileHashEl.textContent = 'Calculating...';
+
+            // Real SHA-256 calculation
+            calculateSHA256(file).then(hash => {
+                fileHashEl.textContent = hash;
+            }).catch(err => {
+                console.error("Error calculating SHA256:", err);
+                fileHashEl.textContent = 'Error calculating hash';
+            });
+        }
+
+        // --- Calculate SHA-256 ---
+        async function calculateSHA256(file) {
+            const buffer = await file.arrayBuffer();
+            const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+        }
+
+        // --- Start Scan ---
+        async function startScan() {
+            const file = apkInput.files[0];
+            if (!file) return alert("Please upload an APK file first!");
+
+            // Show scanning UI
+            statusIndicator.classList.remove('hidden');
+            scanButton.disabled = true;
+            scanResult.classList.add('hidden');
+
+            // Progress animation
+            let progress = 0;
+            const interval = setInterval(() => {
+                if (progress < 90) {
+                    progress += Math.random() * 8; // a bit dynamic
+                    progressBar.style.width = Math.min(progress, 90) + "%";
+                }
+            }, 300);
+
+            try {
+                const formData = new FormData();
+                formData.append("apkFile", file);
+
+                const response = await fetch("/analyze_apk", {
+                    method: "POST",
+                    body: formData
+                });
+
+                clearInterval(interval);
+                progressBar.style.width = "100%";
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || "Scan failed. Please try again.");
+                }
+
+                const result = await response.json();
+
+                // --- IMPORTANT DEBUGGING STEP ---
+                console.log("Scan Result from Backend:", result);
+                console.log("Report ID received:", result.report_id);
+                // --- END DEBUGGING ---
+
+                // Save report_id to localStorage for direct access to report
+                if (result.report_id) {
+                    localStorage.setItem("lastReportId", result.report_id);
+                } else {
+                    console.error("No report_id found in scan result!");
+                    alert("Scan completed but no report ID was generated. Please check server logs.");
+                    scanButton.disabled = false;
+                    statusIndicator.classList.add('hidden');
+                    progressBar.style.width = "0%";
+                    return; // Stop execution if no report ID
+                }
+
+
+                // Show mini result card
+                showScanResult(result);
+
+            } catch (err) {
+                alert(err.message);
+                console.error("Error during scan process:", err); // More detailed error logging
+                scanButton.disabled = false;
+                statusIndicator.classList.add('hidden');
+                progressBar.style.width = "0%";
+                clearInterval(interval);
+            }
+        }
+
+        // --- Show Result Card (preview before report page) ---
+        function showScanResult(result) {
+            const isMalicious = result.is_malicious || false; // Corrected from result.malicious
+            const reportId = result.report_id;
+
+            let verdictClass = "verdict-safe";
+            let verdictText = "APK is Safe";
+            let message = "No malicious patterns detected.";
+            let iconHtml = `
+                <div class="w-16 h-16 mx-auto mb-4 bg-[#44ff44] rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+            `;
+
+            if (isMalicious) {
+                verdictClass = "verdict-dangerous";
+                verdictText = "Malicious APK Detected!";
+                message = "Suspicious code patterns and high-risk permissions found.";
+                iconHtml = `
+                    <div class="w-16 h-16 mx-auto mb-4 bg-[#ff4444] rounded-full flex items-center justify-center">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </div>
+                `;
+            } else if (result.is_fake) { // Corrected from result.analysis.is_fake
+                verdictClass = "verdict-likely-fake";
+                verdictText = "Likely Fake APK Detected!";
+                message = "AI flagged this APK as potentially fake or suspicious.";
+                iconHtml = `
+                    <div class="w-16 h-16 mx-auto mb-4 bg-orange-400 rounded-full flex items-center justify-center">
+                        <i class="fas fa-exclamation-triangle text-black text-2xl"></i>
+                    </div>
+                `;
+            }
+
+
+            resultContent.innerHTML = `
+                <div class="text-center">
+                    ${iconHtml}
+                    <h4 class="text-xl font-semibold ${verdictClass} mb-2">${verdictText}</h4>
+                    <p class="text-[#b0b0b0] mb-4">${message}</p>
+                    <button onclick="showPage('reports', '${reportId}')" class="btn-neon px-4 py-2 rounded-lg">View Detailed Analysis</button>
+                </div>
+            `;
+
+            scanResult.classList.remove('hidden');
+            statusIndicator.classList.add('hidden');
+            scanButton.disabled = false;
+        }
+
+        // --- Batch APK Upload Handling ---
+        const batchUploadZone = document.getElementById('batchUploadZone');
+        const batchApkFilesInput = document.getElementById('batchApkFiles');
+        const batchFileInfo = document.getElementById('batchFileInfo');
+        const batchFileCount = document.getElementById('batchFileCount');
+        const batchFileList = document.getElementById('batchFileList');
+        const batchScanButton = document.getElementById('batchScanButton');
+        const batchStatusIndicator = document.getElementById('batchStatusIndicator');
+        const batchProgressBar = document.getElementById('batchProgressBar');
+        const batchScanResult = document.getElementById('batchScanResult');
+        const batchResultContent = document.getElementById('batchResultContent');
+
+        let selectedBatchFiles = [];
+
+        batchUploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            batchUploadZone.classList.add('dragover');
+        });
+
+        batchUploadZone.addEventListener('dragleave', () => {
+            batchUploadZone.classList.remove('dragover');
+        });
+
+        batchUploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            batchUploadZone.classList.remove('dragover');
+            handleBatchFiles(e.dataTransfer.files);
+        });
+
+        batchApkFilesInput.addEventListener('change', (e) => {
+            handleBatchFiles(e.target.files);
+        });
+
+        function handleBatchFiles(files) {
+            selectedBatchFiles = [];
+            batchFileList.innerHTML = ''; // Clear previous list
+            batchScanResult.classList.add('hidden'); // Hide previous result
+            batchStatusIndicator.classList.add('hidden'); // Hide previous status
+            batchProgressBar.style.width = '0%'; // Reset progress bar
+
+            if (files.length > 0) {
+                let validFilesCount = 0;
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    if (file.name.toLowerCase().endsWith('.apk')) {
+                        selectedBatchFiles.push(file);
+                        const listItem = document.createElement('div');
+                        listItem.className = 'flex justify-between items-center text-sm text-[#b0b0b0]';
+                        listItem.innerHTML = `
+                            <span>${file.name}</span>
+                            <span>${formatFileSize(file.size)}</span>
+                        `;
+                        batchFileList.appendChild(listItem);
+                        validFilesCount++;
+                    }
+                }
+
+                batchFileCount.textContent = validFilesCount;
+                if (validFilesCount > 0) {
+                    batchFileInfo.classList.remove('hidden');
+                    batchScanButton.disabled = false;
+                } else {
+                    batchFileInfo.classList.add('hidden');
+                    batchScanButton.disabled = true;
+                    alert('No valid APK files selected. Please select files ending with .apk');
+                }
+            } else {
+                batchFileInfo.classList.add('hidden');
+                batchScanButton.disabled = true;
+            }
+        }
+
+        // Start Batch Scan (real backend)
+        async function startBatchScan() {
+            if (selectedBatchFiles.length === 0) {
+                alert('Please select APK files for batch scanning.');
+                return;
+            }
+
+            batchStatusIndicator.classList.remove('hidden');
+            batchScanButton.disabled = true;
+            batchScanResult.classList.add('hidden');
+            batchResultContent.innerHTML = '';
+
+            let completed = 0;
+            const totalFiles = selectedBatchFiles.length;
+
+            for (let i = 0; i < totalFiles; i++) {
+                const file = selectedBatchFiles[i];
+                const formData = new FormData();
+                formData.append("apk_file", file);
+
+                try {
+                    const response = await fetch("/analyze_apk", {  // Flask backend
+                        method: "POST",
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || `Failed to scan ${file.name}`);
+                    }
+
+                    const result = await response.json();
+
+                    // Display per-file result card
+                    const resultCard = document.createElement("div");
+                    resultCard.className = "glass-card p-4 mb-4";
+                    resultCard.innerHTML = `
+                        <h4 class="font-semibold text-lg mb-2">${file.name}</h4>
+                        <p><strong>Verdict:</strong> ${result.verdict || "N/A"}</p>
+                        <p><strong>Risk:</strong> ${result.risk || "N/A"}</p>
+                        <button onclick="showPage('reports', '${result.report_id}')" class="btn-neon mt-2 px-4 py-1 rounded">
+                            View Full Report
+                        </button>
+                    `;
+                    batchResultContent.appendChild(resultCard);
+
+                } catch (err) {
+                    console.error(err);
+                    batchResultContent.innerHTML += `<p class="text-red-500">Error scanning ${file.name}: ${err.message}</p>`;
+                }
+
+                completed++;
+                batchProgressBar.style.width = `${(completed / totalFiles) * 100}%`;
+            }
+
+            batchScanResult.classList.remove('hidden');
+            batchStatusIndicator.classList.add('hidden');
+            batchScanButton.disabled = false;
+        }
+
+        // dashboard.js
+
+        let safetyChartInstance = null;
+        let permissionsChartInstance = null;
+        let activityChartInstance = null;
+
+        async function fetchDashboardData() {
+            try {
+                const response = await fetch("/api/dashboard-data"); // Flask backend endpoint
+                const data = await response.json();
+                updateDashboard(data);
+            } catch (error) {
+                console.error("Error fetching dashboard data:", error);
+            }
+        }
+
+        async function fetchDashboardDataForHomeAbout() {
+            try {
+                const response = await fetch("/api/dashboard-data");
+                const data = await response.json();
+                document.getElementById("homeTotalApksScanned").innerText = data.totalApksScanned || "0";
+                document.getElementById("aboutTotalApksAnalyzed").innerText = data.totalApksScanned || "0";
+            } catch (error) {
+                console.error("Error fetching dashboard data for home/about:", error);
+            }
+        }
+
+
+        function updateDashboard(data) {
+            // ✅ Update Summary Cards
+            document.getElementById("totalApksScanned").innerText = data.totalApksScanned || "0";
+            document.getElementById("maliciousDetected").innerText = data.maliciousDetected || "0";
+            document.getElementById("trustedCertificates").innerText = data.trustedCertificates || "0";
+            document.getElementById("highRiskPermissions").innerText = data.highRiskPermissions || "0";
+
+            // ✅ Initialize Charts
+            renderSafetyChart(data.safetyDistribution);
+            renderPermissionsChart(data.dangerousPermissions);
+            renderActivityChart(data.recentScans);
+        }
+
+        // ---------- Safety Donut Chart ----------
+        function renderSafetyChart(safetyData) {
+            const ctx = document.getElementById("safetyChart").getContext("2d");
+
+            if (safetyChartInstance) safetyChartInstance.destroy();
+
+            safetyChartInstance = new Chart(ctx, {
+                type: "doughnut",
+                data: {
+                    labels: ["Safe", "Warning", "Malicious"],
+                    datasets: [{
+                        data: [
+                            safetyData.safe || 0,
+                            safetyData.warning || 0,
+                            safetyData.malicious || 0
+                        ],
+                        backgroundColor: ["#44ff44", "#ffaa00", "#ff4444"]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: "bottom", labels: { color: 'white' } } },
+                    cutout: '70%',
+                    animation: {
+                        animateScale: true,
+                        animateRotate: true
+                    }
+                }
+            });
+        }
+
+        // ---------- Permissions Bar Chart ----------
+        let permissionsZoom = 1;
+        let allPermissionsData = {}; // Store all data to handle zoom
+
+        function renderPermissionsChart(permissionsData) {
+            allPermissionsData = permissionsData; // Save full data
+            const ctx = document.getElementById("permissionsChart").getContext("2d");
+
+            if (permissionsChartInstance) permissionsChartInstance.destroy();
+
+            const labels = Object.keys(allPermissionsData);
+            const values = Object.values(allPermissionsData);
+
+            const displayCount = Math.ceil(labels.length * permissionsZoom);
+            const displayLabels = labels.slice(0, displayCount);
+            const displayValues = values.slice(0, displayCount);
+
+            permissionsChartInstance = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: displayLabels,
+                    datasets: [{
+                        label: "Permission Count",
+                        data: displayValues,
+                        backgroundColor: "#ff4444"
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: 'white' },
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        },
+                        x: {
+                            ticks: { color: 'white' },
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        }
+                    },
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+        }
+
+        document.getElementById("permissionsZoomIn").addEventListener("click", () => {
+            if (permissionsZoom < 1) {
+                permissionsZoom = Math.min(1, permissionsZoom + 0.2);
+                renderPermissionsChart(allPermissionsData); // Re-render with stored data
+            }
+        });
+        document.getElementById("permissionsZoomOut").addEventListener("click", () => {
+            if (permissionsZoom > 0.2) {
+                permissionsZoom = Math.max(0.2, permissionsZoom - 0.2);
+                renderPermissionsChart(allPermissionsData); // Re-render with stored data
+            }
+        });
+
+        // ---------- Activity Line Chart ----------
+        let activityZoom = 1;
+        let allActivityData = {}; // Store all data to handle zoom
+
+        function renderActivityChart(activityData) {
+            allActivityData = activityData; // Save full data
+            const ctx = document.getElementById("activityChart").getContext("2d");
+
+            if (activityChartInstance) activityChartInstance.destroy();
+
+            const labels = allActivityData.map(entry => entry.date);
+            const values = allActivityData.map(entry => entry.count);
+
+            const displayCount = Math.ceil(labels.length * activityZoom);
+            const displayLabels = labels.slice(-displayCount);
+            const displayValues = values.slice(-displayCount);
+
+            activityChartInstance = new Chart(ctx, {
+                type: "line",
+                data: {
+                    labels: displayLabels,
+                    datasets: [{
+                        label: "Scans per Day",
+                        data: displayValues,
+                        borderColor: "#0ff",
+                        backgroundColor: "rgba(0, 255, 255, 0.2)",
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: "bottom", labels: { color: 'white' } } },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: 'white' },
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        },
+                        x: {
+                            ticks: { color: 'white' },
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        }
+                    },
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+        }
+
+        document.getElementById("activityZoomIn").addEventListener("click", () => {
+            if (activityZoom < 1) {
+                activityZoom = Math.min(1, activityZoom + 0.2);
+                renderActivityChart(allActivityData);
+            }
+        });
+        document.getElementById("activityZoomOut").addEventListener("click", () => {
+            if (activityZoom > 0.2) {
+                activityZoom = Math.max(0.2, activityZoom - 0.2);
+                renderActivityChart(allActivityData);
+            }
+        });
+
+        // Load Data on Page Ready
+        document.addEventListener("DOMContentLoaded", () => {
+            showPage('home'); // Default to home page
+            fetchDashboardDataForHomeAbout(); // Populate home/about stats on load
+            // Clear the last report ID from localStorage on page load
+            localStorage.removeItem("lastReportId");
+        });
+
+
+        // =========================
+        // Fetch & Populate Report
+        // =========================
+        let currentReportData = null; // Store current report data for PDF/CSV
+
+        async function loadReport(reportId = null) {
+            try {
+                let url = "/api/report";
+                let actualReportId = reportId;
+
+                if (!reportId) {
+                    // If no reportId is passed, try to get the last one from localStorage
+                    const lastReportId = localStorage.getItem("lastReportId");
+                    if (lastReportId) {
+                        actualReportId = lastReportId;
+                        console.log("loadReport: Using lastReportId from localStorage:", actualReportId);
+                    } else {
+                        // If no reportId and no lastReportId, show a message
+                        console.warn("loadReport: No reportId provided and no lastReportId in localStorage. Cannot load report.");
+                        document.getElementById("reportDate").innerText = "N/A";
+                        document.getElementById("reportVerdict").innerText = "No Report Available";
+                        document.getElementById("reportRisk").innerText = "N/A";
+                        document.getElementById("executiveSummary").innerText = "Please upload an APK to generate a report.";
+                        // Clear other fields or hide sections as appropriate
+                        return; // Exit function
+                    }
+                }
+
+                url += `?id=${actualReportId}`;
+                console.log("loadReport: Fetching report from URL:", url);
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                // --- IMPORTANT DEBUGGING STEP ---
+                console.log("Report Data from Backend:", data);
+                // --- END DEBUGGING ---
+
+                if (data.verdict === "No report" || data.verdict === "Error reading report file") {
+                    console.error("loadReport: Backend returned 'No report' or an error:", data.verdict, data.error);
+                    document.getElementById("reportDate").innerText = "N/A";
+                    document.getElementById("reportVerdict").innerText = "No Report Available";
+                    document.getElementById("reportRisk").innerText = "N/A";
+                    document.getElementById("executiveSummary").innerText = `The requested report could not be found or read: ${data.verdict}. Details: ${data.error || 'N/A'}. Please upload an APK to generate a new report.`;
+                    // Clear other fields or hide sections as appropriate
+                    return;
+                }
+
+                currentReportData = data; // Store for PDF/CSV export
+
+                // ----------------------
+                // Basic Info
+                // ----------------------
+                document.getElementById("reportDate").innerText = new Date(data.created_at).toLocaleString() || "-";
+                document.getElementById("reportVerdict").innerText = data.verdict || "Unknown";
+                document.getElementById("reportRisk").className = `risk-badge risk-${data.risk.toLowerCase()}`;
+                document.getElementById("reportRisk").innerText = data.risk || "N/A";
+
+                document.getElementById("reportFileName").innerText = data.file?.name || "-";
+                document.getElementById("reportPackageName").innerText = data.package || "-";
+                document.getElementById("reportVersion").innerText = "N/A"; // Your JSON doesn't have version
+                document.getElementById("reportFileSize").innerText = formatFileSize(data.file?.size || 0) || "-";
+                document.getElementById("reportSha256").innerText = data.file?.sha256 || "-";
+                document.getElementById("reportMd5").innerText = data.file?.md5 || "-";
+                document.getElementById("reportAnalyzed").innerText = new Date(data.created_at).toLocaleString() || "-";
+                document.getElementById("reportAnalysisTime").innerText = "N/A"; // Your JSON doesn't have analysis_time
+
+                // ----------------------
+                // Executive Summary
+                // ----------------------
+                document.getElementById("criticalCount").innerText = data.summary?.critical || "0";
+                document.getElementById("warningCount").innerText = data.summary?.warnings || "0";
+                document.getElementById("safeCount").innerText = data.summary?.safe || "0";
+                document.getElementById("executiveSummary").innerText = data.summary?.text || "No summary available.";
+
+                const recommendationVerdictEl = document.getElementById("recommendationVerdict");
+                if (data.risk === "High") {
+                    recommendationVerdictEl.className = "verdict-dangerous";
+                    recommendationVerdictEl.innerText = "We strongly recommend not installing this application.";
+                } else if (data.risk === "Medium") {
+                    recommendationVerdictEl.className = "verdict-likely-fake";
+                    recommendationVerdictEl.innerText = "Caution advised: This application has some suspicious indicators.";
+                } else {
+                    recommendationVerdictEl.className = "verdict-safe";
+                    recommendationVerdictEl.innerText = "This application appears to be clean, but always exercise caution.";
+                }
+
+
+                // ----------------------
+                // Security Score
+                // ----------------------
+                document.getElementById("securityScore").innerText = data.score?.overall || "0";
+                document.getElementById("securityScore").className = `text-3xl font-bold ${data.risk === "High" ? "text-[#ff4444]" : (data.risk === "Medium" ? "text-orange-400" : "text-[#44ff44]")}`;
+
+
+                document.getElementById("staticBar").style.width = (data.score?.static || 0) + "%";
+                document.getElementById("staticCount").innerText = data.score?.static || "0";
+                document.getElementById("staticCount").className = `threat-count ${data.score?.static > 50 ? "text-[#ff4444]" : "text-[#44ff44]"}`;
+
+                document.getElementById("dynamicBar").style.width = (data.score?.dynamic || 0) + "%";
+                document.getElementById("dynamicCount").innerText = data.score?.dynamic || "0";
+                document.getElementById("dynamicCount").className = `threat-count ${data.score?.dynamic > 50 ? "text-[#ff4444]" : "text-[#44ff44]"}`;
+
+                document.getElementById("privacyBar").style.width = (data.score?.privacy || 0) + "%";
+                document.getElementById("privacyCount").innerText = data.score?.privacy || "0";
+                document.getElementById("privacyCount").className = `threat-count ${data.score?.privacy > 50 ? "text-orange-400" : "text-[#44ff44]"}`;
+
+                document.getElementById("reputationBar").style.width = (data.score?.reputation || 0) + "%";
+                document.getElementById("reputationCount").innerText = data.score?.reputation || "0";
+                document.getElementById("reputationCount").className = `threat-count ${data.score?.reputation > 50 ? "text-[#ff4444]" : "text-[#44ff44]"}`;
+
+                // Score Chart (Donut)
+                const scoreCtx = document.getElementById("scoreChart").getContext("2d");
+                if (window.scoreChartInstance) window.scoreChartInstance.destroy();
+                window.scoreChartInstance = new Chart(scoreCtx, {
+                    type: 'doughnut',
+                    data: {
+                        datasets: [{
+                            data: [data.score?.overall || 0, 100 - (data.score?.overall || 0)],
+                            backgroundColor: [
+                                data.risk === "High" ? "#ff4444" : (data.risk === "Medium" ? "orange" : "#44ff44"),
+                                'rgba(255, 255, 255, 0.1)'
+                            ],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '80%',
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { enabled: false }
+                        }
+                    }
+                });
+
+
+                // ----------------------
+                // Threat Indicators
+                // ----------------------
+                const malwareList = document.getElementById("malwareFamilies");
+                malwareList.innerHTML = "";
+                if (data.threats?.malware && data.threats.malware.length > 0) {
+                    data.threats.malware.forEach(m => {
+                        malwareList.innerHTML += `
+                            <li class="flex items-center">
+                                <i class="fas fa-virus text-[#ff4444] mr-2"></i>
+                                <span>${m.name || 'Unknown Malware'}</span>
+                                <span class="risk-badge ${m.risk ? "risk-" + m.risk.toLowerCase() : ""} ml-auto">${m.risk || ""}</span>
+                        </li>`;
+                    });
+                } else {
+                    malwareList.innerHTML = `<li class="text-[#b0b0b0]">No specific malware families detected.</li>`;
+                }
+
+
+                const behaviorList = document.getElementById("behaviorAnalysis");
+                behaviorList.innerHTML = "";
+                if (data.threats?.behavior && data.threats.behavior.length > 0) {
+                    data.threats.behavior.forEach(b => {
+                        behaviorList.innerHTML += `
+                            <li class="flex items-center">
+                                <i class="fas fa-exclamation-triangle text-orange-400 mr-2"></i>
+                                <span>${b}</span>
+                            </li>`;
+                    });
+                } else {
+                    behaviorList.innerHTML = `<li class="text-[#b0b0b0]">No unusual behaviors detected.</li>`;
+                }
+
+
+                // ----------------------
+                // Permissions
+                // ----------------------
+                const perms = document.getElementById("permissionsList");
+                perms.innerHTML = "";
+                if (data.permissions && data.permissions.length > 0) {
+                    data.permissions.forEach(p => {
+                        perms.innerHTML += `
+                            <div class="permission-risk-${(p.risk || 'low').toLowerCase()} p-3 rounded">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-medium">${p.name || 'Unknown Permission'}</span>
+                                    <span class="risk-badge risk-${(p.risk || 'low').toLowerCase()}">${p.risk || 'LOW'}</span>
+                                </div>
+                                <p class="text-sm text-[#b0b0b0] mt-1">${p.description || 'No description available.'}</p>
+                            </div>`;
+                    });
+                } else {
+                    perms.innerHTML = `<div class="text-[#b0b0b0]">No permissions found or parsed.</div>`;
+                }
+                document.getElementById("permissionsSummary").innerText = data.permissions_summary || "";
+
+                // ----------------------
+                // Network Domains
+                // ----------------------
+                const network = document.getElementById("networkDomains");
+                network.innerHTML = "";
+                if (data.network?.domains && data.network.domains.length > 0) {
+                    data.network.domains.forEach(d => {
+                        network.innerHTML += `
+                            <div class="p-3 ${d.risk === "High" ? "bg-red-900/20" : (d.risk === "Medium" ? "bg-orange-900/20" : "bg-green-900/20")} rounded-lg">
+                                <div class="font-mono text-sm">${d.domain || 'Unknown Domain'}</div>
+                                <div class="text-sm text-[#b0b0b0]">${d.type || 'N/A'} <span class="risk-badge risk-${(d.risk || 'low').toLowerCase()}">${d.risk || 'LOW'}</span></div>
+                            </div>`;
+                    });
+                } else {
+                    network.innerHTML = `<div class="text-[#b0b0b0]">No external network domains detected.</div>`;
+                }
+
+
+                // ----------------------
+                // Recommendations
+                // ----------------------
+                const recs = document.getElementById("recommendations");
+                recs.innerHTML = "<ul class='space-y-3'>" +
+                    (data.recommendations || []).map(r => `
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-[#44ff44] mr-2 mt-1"></i>
+                            <span>${r}</span>
+                        </li>`).join("") + "</ul>";
+                if (!data.recommendations || data.recommendations.length === 0) {
+                    recs.innerHTML = `<div class="text-[#b0b0b0]">No specific recommendations at this time.</div>`;
+                }
+
+                // ----------------------
+                // External Scan Results
+                // ----------------------
+                const scans = document.getElementById("externalScanResults");
+                scans.innerHTML = "";
+                if (data.external_scans && data.external_scans.length > 0) {
+                    data.external_scans.forEach(s => {
+                        scans.innerHTML += `
+                            <tr class="border-b border-gray-800 hover:bg-gray-700/30">
+                                <td class="py-3 px-4">${s.scanner || 'N/A'}</td>
+                                <td class="py-3 px-4"><span class="${s.result === "Malicious" ? "verdict-dangerous" : "verdict-safe"}">${s.result || 'N/A'}</span></td>
+                                <td class="py-3 px-4">${s.detection || 'N/A'}</td>
+                                <td class="py-3 px-4">${s.last_updated || 'N/A'}</td>
+                            </tr>`;
+                    });
+                } else {
+                    scans.innerHTML = `<tr><td colspan="4" class="py-3 px-4 text-center text-[#b0b0b0]">No external scan results available.</td></tr>`;
+                }
+
+            } catch (err) {
+                console.error("Error loading report:", err);
+                alert("Failed to load report. Please try analyzing an APK again.");
+            }
+        }
+
+        // PDF Export Function
+        function downloadPdfReport() {
+            if (!currentReportData) {
+                alert("No report data to export. Please analyze an APK first.");
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(22);
+            doc.text("APK Guardian Security Report", 10, 20);
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            doc.text(`Generated on: ${new Date(currentReportData.created_at).toLocaleString()}`, 10, 30);
+            doc.text(`Verdict: ${currentReportData.verdict} (Risk: ${currentReportData.risk})`, 10, 35);
+
+            let y = 45;
+
+            // File Information
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.text("APK Information", 10, y);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            y += 10;
+            doc.text(`File Name: ${currentReportData.file?.name || '-'}`, 10, y); y += 5;
+            doc.text(`Package Name: ${currentReportData.package || '-'}`, 10, y); y += 5;
+            doc.text(`Size: ${formatFileSize(currentReportData.file?.size || 0) || '-'}`, 10, y); y += 5;
+            doc.text(`SHA-256: ${currentReportData.file?.sha256 || '-'}`, 10, y); y += 5;
+            doc.text(`MD5: ${currentReportData.file?.md5 || '-'}`, 10, y); y += 10;
+
+            // Executive Summary
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.text("Executive Summary", 10, y);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            y += 10;
+            doc.text(`Critical Issues: ${currentReportData.summary?.critical || '0'}`, 10, y); y += 5;
+            doc.text(`Warnings: ${currentReportData.summary?.warnings || '0'}`, 10, y); y += 5;
+            doc.text(`Safe Indicators: ${currentReportData.summary?.safe || '0'}`, 10, y); y += 5;
+            doc.text(currentReportData.summary?.text || 'No summary available.', 10, y, { maxWidth: 180 }); y += doc.getTextDimensions(currentReportData.summary?.text || 'No summary available.', { maxWidth: 180 }).h + 5;
+            doc.text(document.getElementById("recommendationVerdict").innerText, 10, y); y += 10;
+
+            // Security Score
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.text("Security Score", 10, y);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            y += 10;
+            doc.text(`Overall Score: ${currentReportData.score?.overall || '0'}/100`, 10, y); y += 5;
+            doc.text(`Static Analysis: ${currentReportData.score?.static || '0'}`, 10, y); y += 5;
+            doc.text(`Dynamic Analysis: ${currentReportData.score?.dynamic || '0'}`, 10, y); y += 5;
+            doc.text(`Privacy Risk: ${currentReportData.score?.privacy || '0'}`, 10, y); y += 5;
+            doc.text(`Reputation: ${currentReportData.score?.reputation || '0'}`, 10, y); y += 10;
+
+            // Threat Indicators
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.text("Threat Indicators", 10, y);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            y += 10;
+            doc.text("Detected Malware Families:", 10, y); y += 5;
+            if (currentReportData.threats?.malware && currentReportData.threats.malware.length > 0) {
+                currentReportData.threats.malware.forEach(m => {
+                    doc.text(`- ${m.name || 'Unknown Malware'} (Risk: ${m.risk || 'N/A'})`, 15, y); y += 5;
+                });
+            } else {
+                doc.text("- No specific malware families detected.", 15, y); y += 5;
+            }
+            y += 5;
+            doc.text("Behavioral Analysis:", 10, y); y += 5;
+            if (currentReportData.threats?.behavior && currentReportData.threats.behavior.length > 0) {
+                currentReportData.threats.behavior.forEach(b => {
+                    doc.text(`- ${b}`, 15, y); y += 5;
+                });
+            } else {
+                doc.text("- No unusual behaviors detected.", 15, y); y += 5;
+            }
+            y += 10;
+
+            // Permissions Analysis
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.text("Permissions Analysis", 10, y);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            y += 10;
+            doc.text(currentReportData.permissions_summary || 'No permission summary available.', 10, y); y += 5;
+            if (currentReportData.permissions && currentReportData.permissions.length > 0) {
+                currentReportData.permissions.forEach(p => {
+                    if (y > 280) { doc.addPage(); y = 10; } // New page if needed
+                    doc.text(`${p.name || 'Unknown Permission'} (Risk: ${p.risk || 'N/A'})`, 15, y); y += 5;
+                    doc.text(`  Description: ${p.description || 'No description available.'}`, 20, y, { maxWidth: 170 }); y += doc.getTextDimensions(p.description || 'No description available.', { maxWidth: 170 }).h + 2;
+                });
+            } else {
+                doc.text("- No permissions found or parsed.", 15, y); y += 5;
+            }
+            y += 10;
+
+            // Network Analysis
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.text("Network Analysis", 10, y);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            y += 10;
+            if (currentReportData.network?.domains && currentReportData.network.domains.length > 0) {
+                currentReportData.network.domains.forEach(d => {
+                    if (y > 280) { doc.addPage(); y = 10; } // New page if needed
+                    doc.text(`- ${d.domain || 'Unknown Domain'} (Type: ${d.type || 'N/A'}, Risk: ${d.risk || 'N/A'})`, 15, y); y += 5;
+                });
+            } else {
+                doc.text("- No external network domains detected.", 15, y); y += 5;
+            }
+            y += 10;
+
+            // Recommendations
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.text("Recommendations", 10, y);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            y += 10;
+            if (currentReportData.recommendations && currentReportData.recommendations.length > 0) {
+                currentReportData.recommendations.forEach(r => {
+                    if (y > 280) { doc.addPage(); y = 10; } // New page if needed
+                    doc.text(`- ${r}`, 15, y, { maxWidth: 180 }); y += doc.getTextDimensions(r, { maxWidth: 180 }).h + 2;
+                });
+            } else {
+                doc.text("- No specific recommendations at this time.", 15, y); y += 5;
+            }
+            y += 10;
+
+            // External Scan Results
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.text("External Scan Results", 10, y);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            y += 10;
+            if (currentReportData.external_scans && currentReportData.external_scans.length > 0) {
+                currentReportData.external_scans.forEach(s => {
+                    if (y > 280) { doc.addPage(); y = 10; } // New page if needed
+                    doc.text(`Scanner: ${s.scanner || 'N/A'}, Result: ${s.result || 'N/A'}, Detection: ${s.detection || 'N/A'}, Last Updated: ${s.last_updated || 'N/A'}`, 15, y, { maxWidth: 180 }); y += 7;
+                });
+            } else {
+                doc.text("- No external scan results available.", 15, y); y += 5;
+            }
+
+            doc.save(`APK_Guardian_Report_${currentReportData.file?.name || 'unknown'}.pdf`);
+        }
+
+        // CSV Export Function
+        function downloadCsvReport() {
+            if (!currentReportData) {
+                alert("No report data to export. Please analyze an APK first.");
+                return;
+            }
+
+            const csvRows = [];
+            csvRows.push("Section,Detail,Value");
+
+            // File Information
+            csvRows.push("APK Information,File Name," + (currentReportData.file?.name || '-'));
+            csvRows.push("APK Information,Package Name," + (currentReportData.package || '-'));
+            csvRows.push("APK Information,Size," + (formatFileSize(currentReportData.file?.size || 0) || '-'));
+            csvRows.push("APK Information,SHA-256," + (currentReportData.file?.sha256 || '-'));
+            csvRows.push("APK Information,MD5," + (currentReportData.file?.md5 || '-'));
+
+            // Executive Summary
+            csvRows.push("Executive Summary,Verdict," + (currentReportData.verdict || 'Unknown'));
+            csvRows.push("Executive Summary,Risk," + (currentReportData.risk || 'N/A'));
+            csvRows.push("Executive Summary,Critical Issues," + (currentReportData.summary?.critical || '0'));
+            csvRows.push("Executive Summary,Warnings," + (currentReportData.summary?.warnings || '0'));
+            csvRows.push("Executive Summary,Safe Indicators," + (currentReportData.summary?.safe || '0'));
+            csvRows.push("Executive Summary,Summary Text,\"" + (currentReportData.summary?.text || 'No summary available.').replace(/"/g, '""') + "\"");
+
+            // Security Score
+            csvRows.push("Security Score,Overall Score," + (currentReportData.score?.overall || '0'));
+            csvRows.push("Security Score,Static Analysis," + (currentReportData.score?.static || '0'));
+            csvRows.push("Security Score,Dynamic Analysis," + (currentReportData.score?.dynamic || '0'));
+            csvRows.push("Security Score,Privacy Risk," + (currentReportData.score?.privacy || '0'));
+            csvRows.push("Security Score,Reputation," + (currentReportData.score?.reputation || '0'));
+
+            // Threat Indicators
+            if (currentReportData.threats?.malware && currentReportData.threats.malware.length > 0) {
+                currentReportData.threats.malware.forEach(m => {
+                    csvRows.push(`Threat Indicators,Malware Family,${m.name || 'Unknown Malware'} (Risk: ${m.risk || 'N/A'})`);
+                });
+            } else {
+                csvRows.push("Threat Indicators,Malware Family,No specific malware families detected.");
+            }
+            if (currentReportData.threats?.behavior && currentReportData.threats.behavior.length > 0) {
+                currentReportData.threats.behavior.forEach(b => {
+                    csvRows.push(`Threat Indicators,Behavioral Analysis,"${b.replace(/"/g, '""')}"`);
+                });
+            } else {
+                csvRows.push("Threat Indicators,Behavioral Analysis,No unusual behaviors detected.");
+            }
+
+            // Permissions
+            if (currentReportData.permissions && currentReportData.permissions.length > 0) {
+                currentReportData.permissions.forEach(p => {
+                    csvRows.push(`Permissions,${p.name || 'Unknown Permission'},${p.risk || 'N/A'},"${p.description || 'No description available.'}".replace(/"/g, '""')`);
+                });
+            } else {
+                csvRows.push("Permissions,N/A,No permissions found or parsed.");
+            }
+
+            // Network Domains
+            if (currentReportData.network?.domains && currentReportData.network.domains.length > 0) {
+                currentReportData.network.domains.forEach(d => {
+                    csvRows.push(`Network,Domain,${d.domain || 'Unknown Domain'},${d.type || 'N/A'},${d.risk || 'N/A'}`);
+                });
+            } else {
+                csvRows.push("Network,Domain,No external network domains detected.");
+            }
+
+            // Recommendations
+            if (currentReportData.recommendations && currentReportData.recommendations.length > 0) {
+                currentReportData.recommendations.forEach(r => {
+                    csvRows.push(`Recommendations,Recommendation,"${r.replace(/"/g, '""')}"`);
+                });
+            } else {
+                csvRows.push("Recommendations,Recommendation,No specific recommendations at this time.");
+            }
+
+            // External Scan Results
+            if (currentReportData.external_scans && currentReportData.external_scans.length > 0) {
+                currentReportData.external_scans.forEach(s => {
+                    csvRows.push(`External Scan,${s.scanner || 'N/A'},${s.result || 'N/A'},${s.detection || 'N/A'},${s.last_updated || 'N/A'}`);
+                });
+            } else {
+                csvRows.push("External Scan,N/A,No external scan results available.");
+            }
+
+
+            const csvContent = csvRows.map(e => e.split(',').map(f => f.startsWith('"') ? f : `"${f}"`).join(',')).join("\n");
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `APK_Guardian_Report_${currentReportData.file?.name || 'unknown'}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // Share Function
+        async function shareReport() {
+            if (!currentReportData) {
+                alert("No report data to share. Please analyze an APK first.");
+                return;
+            }
+
+            const shareData = {
+                title: `APK Guardian Report for ${currentReportData.file?.name || 'APK'}`,
+                text: `Verdict: ${currentReportData.verdict}, Risk: ${currentReportData.risk}. Overall Score: ${currentReportData.score?.overall}/100.`,
+                url: window.location.origin + `/report/${currentReportData.report_id}` // Construct a shareable URL
+            };
+
+            try {
+                if (navigator.share) {
+                    await navigator.share(shareData);
+                    alert("Report shared successfully!");
+                } else {
+                    // Fallback for browsers that don't support Web Share API
+                    const reportUrl = window.location.origin + `/report/${currentReportData.report_id}`;
+                    navigator.clipboard.writeText(reportUrl);
+                    alert("Report link copied to clipboard: " + reportUrl);
+                }
+            } catch (err) {
+                console.error("Error sharing report:", err);
+                alert("Failed to share report.");
+            }
+        }
+
+
+    </script>
+</body>
+</html>

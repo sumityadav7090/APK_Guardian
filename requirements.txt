@@ -1,0 +1,7 @@
+flask
+werkzeug
+joblib
+scikit-learn
+numpy
+androguard
+pillow
